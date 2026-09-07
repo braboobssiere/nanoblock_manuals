@@ -252,7 +252,8 @@ if __name__ == "__main__":
     scroller_thread.start()
     downloader_thread.start()
 
-    scroller_thread.join()             downloader_thread.join()
+    scroller_thread.join()
+    downloader_thread.join()
 
     print("\nAll done!")
     print(f"Total processed products (including previous runs): {len(processed_urls)}")

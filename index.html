@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nanoblock Manuals Index</title>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --border: #dee2e6;
+      --accent: #0366d6;
+      --text: #24292e;
+      --muted: #586069;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 2rem 1rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+    .search-box {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      outline: none;
+    }
+    .search-box:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.15);
+    }
+    .set-group {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .set-header {
+      padding: 0.85rem 1rem;
+      font-weight: 600;
+      font-size: 1.05rem;
+      background: #f1f3f5;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .set-header:hover { background: #e9ecef; }
+    .set-header .count {
+      font-weight: 400;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .set-body { display: block; }
+    .set-body.collapsed { display: none; }
+    .manual-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid #f1f3f5;
+      text-decoration: none;
+      color: var(--text);
+      transition: background 0.15s;
+    }
+    .manual-row:last-child { border-bottom: none; }
+    .manual-row:hover { background: #f6f8fa; }
+    .manual-name {
+      font-size: 0.9rem;
+      word-break: break-word;
+      padding-right: 1rem;
+    }
+    .manual-page {
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .loading, .error {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+    }
+    .error { color: #d73a49; }
+    .footer {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <h1>🧱 Nanoblock Manuals Index</h1>
+  <p class="subtitle">Auto-generated from the repository file list. Click a manual to open the PDF.</p>
+
+  <input
+    type="text"
+    id="search"
+    class="search-box"
+    placeholder="Search by set name, model number, or filename…"
+    autocomplete="off"
+  >
+
+  <div id="content">
+    <div class="loading">Loading manuals…</div>
+  </div>
+
+  <div class="footer">
+    <a href="https://github.com/braboobssiere/nanoblock_manuals" target="_blank" rel="noopener">
+      braboobssiere/nanoblock_manuals
+    </a>
+  </div>
+
+  <script>
+    // ── CONFIG ──────────────────────────────────────────────────────────
+    const OWNER = 'braboobssiere';
+    const REPO  = 'nanoblock_manuals';
+    const FOLDER = 'nanoblock_manuals';   // the subfolder containing the PDFs
+    const BRANCH = 'main';
+    // ────────────────────────────────────────────────────────────────────
+
+    const contentEl = document.getElementById('content');
+    const searchEl  = document.getElementById('search');
+    let allFiles    = [];
+
+    /**
+     * Fetch the directory listing from the GitHub Contents API.
+     * The API returns up to 1000 entries, which is plenty for this repo.
+     */
+    async function fetchManuals() {
+      const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FOLDER}?ref=${BRANCH}`;
+      try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
+        const data = await res.json();
+
+        // Keep only PDF files
+        allFiles = data.filter(item => item.type === 'file' && item.name.toLowerCase().endsWith('.pdf'));
+        render(allFiles);
+      } catch (err) {
+        contentEl.innerHTML = `<div class="error">Could not load manuals: ${err.message}</div>`;
+      }
+    }
+
+    /**
+     * Try to extract a human-friendly "set name" and "page label" from the filename.
+     *
+     * Examples:
+     *   "JapaneseGarden_B1_RightBase_inst_s03 - JAPANESE GARDEN DELUXE EDITION - 2.pdf"
+     *      → set: "JAPANESE GARDEN DELUXE EDITION", page: "2"
+     *
+     *   "NB009_01 - ノイシュバンシュタイン城 デラックスエディション - 1.pdf"
+     *      → set: "ノイシュバンシュタイン城 デラックスエディション", page: "1"
+     *
+     *   "250911_I1125_NBC407_inst_front_OL - IPPUDO AKAMARU MODERN - 1.pdf"
+     *      → set: "IPPUDO AKAMARU MODERN", page: "1"
+     */
+    function parseFilename(name) {
+      const base = name.replace(/\.pdf$/i, '');
+
+      // Most filenames end with " - <Set Name> - <page number>"
+      // Use a greedy match so the last " - " separates the page number.
+      const pageMatch = base.match(/^(.+?)\s*-\s*([^-]+?)\s*-\s*(\d+)$/);
+      if (pageMatch) {
+        const rawSet = pageMatch[2].trim();
+        const page   = pageMatch[3].trim();
+        return { set: cleanSetName(rawSet), page, original: name };
+      }
+
+      // Fallback: use the whole filename as the set, no page number
+      return { set: base, page: '', original: name };
+    }
+
+    /** Normalise set names so that similar ones group together. */
+    function cleanSetName(raw) {
+      return raw
+        .replace(/\s+/g, ' ')
+        .replace(/DELUXE EDITION$/i, 'DELUXE EDITION')
+        .trim();
+    }
+
+    /** Group an array of parsed files by their set name. */
+    function groupBySet(files) {
+      const map = new Map();
+      for (const f of files) {
+        const parsed = parseFilename(f.name);
+        if (!map.has(parsed.set)) map.set(parsed.set, []);
+        map.get(parsed.set).push({ ...parsed, url: f.download_url });
+      }
+      // Sort sets alphabetically, and pages numerically within each set
+      const sorted = [...map.entries()].sort((a, b) =>
+        a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
+      );
+      for (const [, items] of sorted) {
+        items.sort((a, b) => {
+          const na = parseInt(a.page, 10) || 0;
+          const nb = parseInt(b.page, 10) || 0;
+          return na - nb;
+        });
+      }
+      return sorted;
+    }
+
+    /** Render the grouped, filtered list into the page. */
+    function render(files) {
+      const filter = searchEl.value.trim().toLowerCase();
+      const filtered = filter
+        ? files.filter(f => f.name.toLowerCase().includes(filter))
+        : files;
+
+      if (filtered.length === 0) {
+        contentEl.innerHTML = '<div class="loading">No manuals match your search.</div>';
+        return;
+      }
+
+      const groups = groupBySet(filtered);
+      let html = '';
+
+      for (const [setName, items] of groups) {
+        html += `
+          <div class="set-group">
+            <div class="set-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+              <span>${escapeHtml(setName)}</span>
+              <span class="count">${items.length} file${items.length > 1 ? 's' : ''}</span>
+            </div>
+            <div class="set-body">
+              ${items.map(item => `
+                <a class="manual-row"
+                   href="${item.url}"
+                   target="_blank"
+                   rel="noopener">
+                  <span class="manual-name">${escapeHtml(item.original)}</span>
+                  ${item.page ? `<span class="manual-page">Page ${escapeHtml(item.page)}</span>` : ''}
+                </a>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      contentEl.innerHTML = html;
+    }
+
+    /** Simple HTML-escaping helper. */
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Re-render whenever the user types in the search box
+    searchEl.addEventListener('input', () => render(allFiles));
+
+    // Kick everything off
+    fetchManuals();
+  </script>
+
+</body>
+</html>

@@ -85,7 +85,25 @@
   .note { margin: .6rem 0 0; padding: .5rem .8rem; font-size: .85rem; border-radius: 8px; background: var(--hover); border: 1px solid var(--line); color: var(--muted); }
   footer { padding: 1.6rem 0 2.5rem; font-size: .8rem; color: var(--muted); }
 
+  /* PDF viewer overlay */
+  body.noscroll { overflow: hidden; }
+  #viewer { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background: #262626; color: #eee; }
+  .vbar { display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; background: #1b1b1b; border-bottom: 1px solid #000; }
+  .vtitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .9rem; }
+  .vpage { font-size: .85rem; color: #bbb; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .vbtn { font: inherit; font-size: .9rem; line-height: 1; color: #eee; background: #333; border: 1px solid #484848; border-radius: 8px;
+          padding: .45rem .75rem; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .vbtn:hover { background: #404040; }
+  .vscroll { flex: 1; position: relative; overflow: auto; padding: 12px 0; -webkit-overflow-scrolling: touch; }
+  .vpages { display: flex; flex-direction: column; align-items: center; gap: 12px; width: max-content; min-width: 100%; }
+  .vp { flex: none; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+  .vp canvas { display: block; width: 100%; height: 100%; }
+  .vp:empty::after { content: "Loading page…"; display: grid; place-items: center; height: 100%; color: #999; font-size: .9rem; }
+  .vmsg { padding: 3rem 1rem; text-align: center; color: #bbb; }
+  .vmsg .vbtn { display: inline-block; margin-top: .8rem; }
+
   @media (max-width: 640px) {
+    .vdl-label { display: none; }
     .row-head, .row-body { grid-template-columns: 1fr; }
     .side { justify-content: space-between; }
     .size { min-width: 0; text-align: left; }
@@ -136,6 +154,18 @@
   </footer>
 </div>
 
+<div id="viewer" role="dialog" aria-modal="true" aria-label="PDF viewer" hidden>
+  <div class="vbar">
+    <button class="vbtn" id="vclose" type="button" aria-label="Close viewer">✕</button>
+    <span class="vtitle" id="vtitle"></span>
+    <span class="vpage" id="vpage"></span>
+    <button class="vbtn" id="vout" type="button" aria-label="Zoom out">−</button>
+    <button class="vbtn" id="vin" type="button" aria-label="Zoom in">+</button>
+    <a class="vbtn" id="vdl" href="#" download>⤓<span class="vdl-label"> Download</span></a>
+  </div>
+  <div class="vscroll" id="vscroll"><div class="vpages" id="vpages"></div><div class="vmsg" id="vmsg"></div></div>
+</div>
+
 <script>
 (() => {
   'use strict';
@@ -157,7 +187,6 @@
   const squash = (s) => fold(s).replace(NON_WORD, '');   // "Yu-Gi-Oh!" -> "yugioh", "NBPM_036" -> "nbpm036"
   const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
   const coll = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
-  const CAN_VIEW = navigator.pdfViewerEnabled !== false;   // false where the browser has no built-in PDF viewer
   const PALETTE = ['#e5484d', '#f5a524', '#17a589', '#3b82f6', '#8e5cf6', '#ec4899', '#14b8a6', '#84a30d', '#f97316'];
 
   $('repo').href = `https://github.com/${OWNER}/${REPO}`;
@@ -201,14 +230,17 @@
   }
 
   let items = [], series = [], colorOf = {}, labelOf = {};
+  const recs = [];   // every PDF, indexed by id
 
   function buildItems(files) {
+    recs.length = 0;
     const groups = new Map();
     for (const [file, size] of files) {
       const m = NAME_RE.exec(file.replace(/\.pdf$/i, ''));
       const code = m ? m[1] : file.replace(/\.pdf$/i, '');
       const name = (m ? m[2] : code).replace(/\s+/g, ' ').trim();
-      const rec = { file, size, code, name, part: m && m[3] ? +m[3] : null, series: seriesOf(code, name) };
+      const rec = { id: recs.length, file, size, code, name, part: m && m[3] ? +m[3] : null, series: seriesOf(code, name) };
+      recs.push(rec);
       // Only PDFs with a "- n" suffix are merged (by name). Plain ones stay separate because
       // different products can share a name (e.g. two different "SANTA CLAUS" kits).
       const key = rec.part != null ? 's:' + name : 'f:' + file;
@@ -233,8 +265,8 @@
   // ---------- 3. render ----------
   const url = (r) => RAW + [DIR, ...r.file.split('/')].map(encodeURIComponent).join('/');
   const actions = (r) => `<span class="actions">` +
-    (CAN_VIEW ? `<a class="btn primary" data-view href="${url(r)}" target="_blank" rel="noopener">View</a>` : '') +
-    `<a class="btn${CAN_VIEW ? '' : ' primary'}" href="${url(r)}" download title="${esc(r.file)}">Download</a></span>`;
+    `<a class="btn primary" data-view="${r.id}" href="${url(r)}" target="_blank" rel="noopener">View</a>` +
+    `<a class="btn" href="${url(r)}" download title="${esc(r.file)}">Download</a></span>`;
 
   function rowHtml(it, open) {
     const style = `style="--c:${colorOf[it.s]}"`;
@@ -287,28 +319,136 @@
     $('count').textContent = `${list.length}${list.length !== items.length ? ' of ' + items.length : ''} manual${list.length === 1 ? '' : 's'}`;
   }
 
-  // ---------- 4. open a PDF in the browser's viewer ----------
-  // GitHub's raw host labels PDFs "application/octet-stream", so a plain link downloads them.
-  // We fetch the bytes (CORS is open) and give the browser a properly-typed Blob instead.
-  async function viewPdf(a) {
-    const href = a.href, label = a.textContent;
-    const w = window.open('', '_blank');
-    if (!w) { location.assign(href); return; }                   // popup blocked -> normal download
-    w.document.write('<!doctype html><meta charset="utf-8"><title>Loading…</title><body style="margin:0;height:100vh;display:grid;place-items:center;font:16px system-ui,sans-serif;color:#666">Loading manual…</body>');
-    w.document.close();
-    a.classList.add('busy'); a.textContent = 'Loading…';
-    try {
-      const res = await fetch(href);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      w.location.replace(URL.createObjectURL(new Blob([await res.arrayBuffer()], { type: 'application/pdf' })));
-    } catch (_) {
-      try {
-        w.document.body.textContent = 'Could not open the PDF here. ';
-        const dl = w.document.createElement('a'); dl.href = href; dl.textContent = 'Download it instead.';
-        w.document.body.appendChild(dl);
-      } catch (__) { /* tab was closed */ }
-    } finally { a.classList.remove('busy'); a.textContent = label; }
+  // ---------- 4. PDF viewer (PDF.js, loaded from a CDN the first time you click View) ----------
+  const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
+  const V = { doc: null, sizes: [], els: [], visible: new Set(), zoom: 1, w: 0, obs: null, token: 0, pushed: false, trigger: null };
+  let pdfjsPromise = null;
+
+  function loadPdfjs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (!pdfjsPromise) pdfjsPromise = new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = PDFJS + 'build/pdf.min.js';
+      s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'build/pdf.worker.min.js'; ok(window.pdfjsLib); };
+      s.onerror = () => { pdfjsPromise = null; s.remove(); fail(new Error("couldn't load the viewer library")); };
+      document.head.appendChild(s);
+    });
+    return pdfjsPromise;
   }
+
+  async function openViewer(r, trigger) {
+    closeViewer(true);
+    const token = ++V.token;
+    V.trigger = trigger;
+    $('viewer').hidden = false; document.body.classList.add('noscroll');
+    history.pushState({ viewer: 1 }, ''); V.pushed = true;     // so the phone's Back button closes the viewer
+    $('vtitle').textContent = r.name + (r.part != null ? ` — Part ${r.part}` : '');
+    $('vdl').href = url(r); $('vpage').textContent = '';
+    $('vmsg').textContent = 'Loading…'; $('vclose').focus();
+    try {
+      const lib = await loadPdfjs();
+      const res = await fetch(url(r));
+      if (!res.ok) throw new Error('download failed: HTTP ' + res.status);
+      const data = new Uint8Array(await res.arrayBuffer());
+      if (token !== V.token) return;
+      const doc = await lib.getDocument({
+        data, isEvalSupported: false,
+        cMapUrl: PDFJS + 'cmaps/', cMapPacked: true, standardFontDataUrl: PDFJS + 'standard_fonts/',
+      }).promise;
+      if (token !== V.token) { doc.destroy(); return; }
+      V.doc = doc;
+      V.sizes = await Promise.all(Array.from({ length: doc.numPages }, (_, i) =>
+        doc.getPage(i + 1).then((p) => { const v = p.getViewport({ scale: 1 }); return [v.width, v.height]; })));
+      if (token !== V.token) return;
+      $('vmsg').textContent = '';
+      buildPages();
+    } catch (err) {
+      if (token !== V.token) return;
+      $('vmsg').innerHTML = `Couldn't show this PDF (${esc(err.message)}).<br><a class="vbtn" href="${url(r)}" download>Download it instead</a>`;
+    }
+  }
+
+  function buildPages() {
+    const box = $('vpages');
+    box.innerHTML = ''; V.els = []; V.visible.clear(); V.w = 0; V.zoom = 1;
+    V.obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const i = +e.target.dataset.i;
+        if (e.isIntersecting) { V.visible.add(i); renderPage(i); } else { V.visible.delete(i); release(e.target); }   // free memory off-screen
+      }
+      updateCurrent();
+    }, { root: $('vscroll'), rootMargin: '120% 0px' });
+    V.sizes.forEach((_, i) => {
+      const d = document.createElement('div'); d.className = 'vp'; d.dataset.i = i;
+      box.appendChild(d); V.els.push(d); V.obs.observe(d);
+    });
+    layout();
+  }
+
+  function layout() {
+    const sc = $('vscroll');
+    const w = Math.max(200, Math.min(sc.clientWidth - 24, 1000) * V.zoom);
+    const k = V.w ? w / V.w : 1;
+    V.els.forEach((d, i) => {
+      const [pw, ph] = V.sizes[i];
+      d.style.width = w + 'px'; d.style.height = (w * ph / pw) + 'px'; release(d);
+    });
+    sc.scrollTop *= k; V.w = w;                       // keep roughly the same spot when zooming
+    V.visible.forEach(renderPage);
+    updateCurrent();
+  }
+
+  async function renderPage(i) {
+    const d = V.els[i], doc = V.doc;
+    if (!d || d._busy || d.firstChild) return;
+    d._busy = true; const tk = d._tk = (d._tk || 0) + 1;
+    try {
+      const page = await doc.getPage(i + 1);
+      if (d._tk !== tk) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const vp = page.getViewport({ scale: parseFloat(d.style.width) * dpr / page.getViewport({ scale: 1 }).width });
+      const c = document.createElement('canvas'); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+      d._task = page.render({ canvasContext: c.getContext('2d'), viewport: vp });
+      await d._task.promise;
+      if (d._tk === tk) d.replaceChildren(c);
+    } catch (_) { /* cancelled or failed: leave the page blank */ }
+    finally { if (d._tk === tk) { d._busy = false; d._task = null; } }
+  }
+
+  function release(d) {
+    d._tk = (d._tk || 0) + 1;
+    if (d._task) { try { d._task.cancel(); } catch (_) {} d._task = null; }
+    d._busy = false; d.replaceChildren();
+  }
+
+  function updateCurrent() {
+    if (!V.els.length) return;
+    const sc = $('vscroll'), mid = sc.scrollTop + sc.clientHeight / 3;
+    let cur = 0; while (cur + 1 < V.els.length && V.els[cur + 1].offsetTop <= mid) cur++;
+    $('vpage').textContent = `${cur + 1} / ${V.els.length}`;
+  }
+
+  function closeViewer(silent) {
+    V.token++;
+    if (V.obs) { V.obs.disconnect(); V.obs = null; }
+    V.els.forEach(release); V.els = []; V.visible.clear();
+    if (V.doc) { V.doc.destroy(); V.doc = null; }
+    $('vpages').innerHTML = '';
+    const wasOpen = !$('viewer').hidden;
+    $('viewer').hidden = true; document.body.classList.remove('noscroll');
+    if (wasOpen && !silent && V.trigger) { try { V.trigger.focus(); } catch (_) {} }
+  }
+
+  function requestClose() {                           // via the ✕ button or Esc
+    if (V.pushed) history.back(); else closeViewer();
+  }
+
+  $('vclose').addEventListener('click', requestClose);
+  $('vin').addEventListener('click', () => { V.zoom = Math.min(3, V.zoom * 1.25); layout(); });
+  $('vout').addEventListener('click', () => { V.zoom = Math.max(0.5, V.zoom / 1.25); layout(); });
+  $('vscroll').addEventListener('scroll', () => { cancelAnimationFrame(V.raf); V.raf = requestAnimationFrame(updateCurrent); }, { passive: true });
+  window.addEventListener('popstate', () => { V.pushed = false; closeViewer(); });
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (!$('viewer').hidden && V.els.length) layout(); }, 150); });
 
   // ---------- 5. start ----------
   async function start() {
@@ -334,11 +474,12 @@
     if (e.target.closest('#retry')) { start(); return; }
     if (e.target.closest('#reset')) { $('q').value = ''; activeSeries = ''; update(); $('q').focus(); return; }
     const a = e.target.closest('a[data-view]');
-    if (a && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) { e.preventDefault(); viewPdf(a); }
+    if (a && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) { e.preventDefault(); openViewer(recs[+a.dataset.view], a); }
   });
   document.addEventListener('keydown', (e) => {
     const tag = document.activeElement.tagName;
-    if (e.key === '/' && tag !== 'INPUT' && !$('q').disabled) { e.preventDefault(); $('q').focus(); }
+    if (e.key === '/' && tag !== 'INPUT' && !$('q').disabled && $('viewer').hidden) { e.preventDefault(); $('q').focus(); }
+    if (e.key === 'Escape' && !$('viewer').hidden) { requestClose(); return; }
     if (e.key === 'Escape' && document.activeElement === $('q') && $('q').value) { $('q').value = ''; update(); }
   });
 

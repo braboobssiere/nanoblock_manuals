@@ -1,279 +1,349 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nanoblock Manuals Index</title>
-  <style>
-    :root {
-      --bg: #f8f9fa;
-      --card-bg: #ffffff;
-      --border: #dee2e6;
-      --accent: #0366d6;
-      --text: #24292e;
-      --muted: #586069;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      padding: 2rem 1rem;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    h1 {
-      font-size: 1.75rem;
-      margin-bottom: 0.25rem;
-    }
-    .subtitle {
-      color: var(--muted);
-      margin-bottom: 1.5rem;
-      font-size: 0.95rem;
-    }
-    .search-box {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      font-size: 1rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
-      outline: none;
-    }
-    .search-box:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.15);
-    }
-    .set-group {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      margin-bottom: 1rem;
-      overflow: hidden;
-    }
-    .set-header {
-      padding: 0.85rem 1rem;
-      font-weight: 600;
-      font-size: 1.05rem;
-      background: #f1f3f5;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      user-select: none;
-    }
-    .set-header:hover { background: #e9ecef; }
-    .set-header .count {
-      font-weight: 400;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    .set-body { display: block; }
-    .set-body.collapsed { display: none; }
-    .manual-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.6rem 1rem;
-      border-bottom: 1px solid #f1f3f5;
-      text-decoration: none;
-      color: var(--text);
-      transition: background 0.15s;
-    }
-    .manual-row:last-child { border-bottom: none; }
-    .manual-row:hover { background: #f6f8fa; }
-    .manual-name {
-      font-size: 0.9rem;
-      word-break: break-word;
-      padding-right: 1rem;
-    }
-    .manual-page {
-      font-size: 0.8rem;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-    .loading, .error {
-      text-align: center;
-      padding: 2rem;
-      color: var(--muted);
-    }
-    .error { color: #d73a49; }
-    .footer {
-      margin-top: 2rem;
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-align: center;
-    }
-    .footer a { color: var(--accent); }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>nanoblock manuals</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B1%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f5f2ec; --surface: #fff; --text: #1f1d1a; --muted: #6d675f; --line: #e6e0d6;
+    --hover: #faf7f2; --accent: #d9381e; --accent-ink: #fff; --focus: #2563eb;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161513; --surface: #1f1d1b; --text: #efebe4; --muted: #a39d93; --line: #35312c;
+            --hover: #262320; --accent: #ff6a4d; --accent-ink: #1a0b07; --focus: #7aa7ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 var(--font); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 1rem; }
+  [hidden] { display: none !important; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.6rem 0 1rem; }
+  .brand { display: flex; align-items: center; gap: .9rem; }
+  .brand svg { width: 52px; flex: none; }
+  h1 { margin: 0; font-size: clamp(1.4rem, 3.6vw, 1.9rem); letter-spacing: -.02em; line-height: 1.15; }
+  .sub { margin: .15rem 0 0; color: var(--muted); font-size: .9rem; }
+  .repo { font-size: .85rem; color: var(--muted); text-decoration: none; border: 1px solid var(--line);
+          border-radius: 999px; padding: .35rem .8rem; background: var(--surface); white-space: nowrap; }
+  .repo:hover { color: var(--text); border-color: var(--muted); }
+
+  .toolbar { padding: .6rem 0 .8rem; }
+  @media (min-width: 720px) { .toolbar { position: sticky; top: 0; z-index: 5; background: var(--bg); } }
+  .search { position: relative; }
+  .search svg { position: absolute; left: .95rem; top: 50%; translate: 0 -50%; width: 18px; height: 18px; color: var(--muted); pointer-events: none; }
+  .search input { width: 100%; font: inherit; font-size: 1.05rem; padding: .8rem 1rem .8rem 2.7rem; color: var(--text);
+                  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; appearance: none; }
+  .search input:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent); }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .7rem 0 .5rem; }
+  .chip { --c: var(--muted); font: inherit; font-size: .85rem; cursor: pointer; display: inline-flex; align-items: center; gap: .45rem;
+          padding: .3rem .75rem; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; }
+  .chip::before { content: ""; width: .6rem; height: .6rem; border-radius: 50%; background: var(--c); }
+  .chip[data-key=""]::before { display: none; }
+  .chip .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .chip:hover { border-color: var(--muted); }
+  .chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .chip[aria-pressed="true"] .n { color: inherit; opacity: .7; }
+  .chip.zero { opacity: .4; }
+  #count { font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .list { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .row { --c: var(--muted); border-bottom: 1px solid var(--line); box-shadow: inset 4px 0 0 var(--c); }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: var(--hover); }
+  .row-head, .row-body { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .4rem 1rem; padding: .75rem 1rem .75rem 1.25rem; }
+  summary.row-head { cursor: pointer; list-style: none; }
+  summary.row-head::-webkit-details-marker { display: none; }
+  .main { min-width: 0; }
+  .title { display: block; font-weight: 600; overflow-wrap: anywhere; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .6rem; margin-top: .2rem; font-size: .8rem; color: var(--muted); }
+  .tag { display: inline-flex; align-items: center; gap: .35rem; }
+  .tag::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--c); }
+  code { font: .78rem var(--mono); overflow-wrap: anywhere; }
+  .pill { display: inline-flex; align-items: center; gap: .3rem; padding: .05rem .5rem; border-radius: 999px;
+          background: var(--hover); border: 1px solid var(--line); color: var(--text); font-weight: 500; }
+  .chev { width: .45rem; height: .45rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; rotate: 45deg; translate: 0 -1px; }
+  details[open] > summary .chev { rotate: 225deg; translate: 0 1px; }
+  .side { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .4rem .9rem; font-size: .82rem; color: var(--muted); }
+  .size { min-width: 3.8rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .actions { display: inline-flex; gap: .4rem; }
+  .btn { display: inline-flex; align-items: center; font: inherit; font-size: .85rem; font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer;
+         padding: .38rem .8rem; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+  .btn.busy { opacity: .6; pointer-events: none; }
+  .parts { margin: 0; padding: .2rem 0; list-style: none; background: var(--hover); border-top: 1px solid var(--line); }
+  .part { display: grid; grid-template-columns: 4.2rem 1fr auto; align-items: center; gap: .3rem 1rem; padding: .5rem 1rem .5rem 1.25rem; }
+  .part + .part { border-top: 1px dashed var(--line); }
+  .pn { font-weight: 600; font-size: .85rem; }
+  .msg { padding: 3rem 1rem; text-align: center; color: var(--muted); }
+  .msg .btn { margin-top: .8rem; }
+  .note { margin: .6rem 0 0; padding: .5rem .8rem; font-size: .85rem; border-radius: 8px; background: var(--hover); border: 1px solid var(--line); color: var(--muted); }
+  footer { padding: 1.6rem 0 2.5rem; font-size: .8rem; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    .row-head, .row-body { grid-template-columns: 1fr; }
+    .side { justify-content: space-between; }
+    .size { min-width: 0; text-align: left; }
+    .part { grid-template-columns: 1fr auto; }
+    .part code { grid-row: 2; }
+    .part .side { grid-column: 2; grid-row: 1 / span 2; flex-direction: column; align-items: flex-end; }
+    .repo { display: none; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; margin-inline: -1rem; padding: 0 1rem .2rem; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { flex: none; }
+  }
+</style>
 </head>
 <body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 56 40" aria-hidden="true">
+        <g fill="#f0644a"><rect x="5" y="6" width="8" height="10" rx="2.5"/><rect x="18" y="6" width="8" height="10" rx="2.5"/><rect x="31" y="6" width="8" height="10" rx="2.5"/><rect x="44" y="6" width="8" height="10" rx="2.5"/></g>
+        <rect x="2" y="13" width="52" height="25" rx="6" fill="#d9381e"/>
+        <rect x="8" y="18" width="16" height="3.5" rx="1.75" fill="#fff" opacity=".3"/>
+      </svg>
+      <div>
+        <h1>nanoblock manuals</h1>
+        <p class="sub" id="sub">Loading list from GitHub…</p>
+      </div>
+    </div>
+    <a class="repo" id="repo" href="#" rel="noopener">GitHub repo ↗</a>
+  </header>
 
-  <h1>🧱 Nanoblock Manuals Index</h1>
-  <p class="subtitle">Auto-generated from the repository file list. Click a manual to open the PDF.</p>
+  <section class="toolbar" aria-label="Search and filters">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search name or code…" title="Try: pikachu, NBPM_036, 姫路城" autocomplete="off" spellcheck="false" aria-label="Search manuals" disabled>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filter by series"></div>
+    <span id="count" aria-live="polite"></span>
+    <p class="note" id="note" hidden></p>
+  </section>
 
-  <input
-    type="text"
-    id="search"
-    class="search-box"
-    placeholder="Search by set name, model number, or filename…"
-    autocomplete="off"
-  >
+  <main>
+    <div class="list" id="list" hidden></div>
+    <div class="msg" id="msg">Loading…</div>
+  </main>
 
-  <div id="content">
-    <div class="loading">Loading manuals…</div>
-  </div>
+  <footer>
+    Unofficial index. The manuals are downloaded from kawada-toys.com and belong to KAWADA CO., LTD.; nanoblock is their trademark.
+  </footer>
+</div>
 
-  <div class="footer">
-    <a href="https://github.com/braboobssiere/nanoblock_manuals" target="_blank" rel="noopener">
-      braboobssiere/nanoblock_manuals
-    </a>
-  </div>
+<script>
+(() => {
+  'use strict';
 
-  <script>
-    // ── CONFIG ──────────────────────────────────────────────────────────
-    const OWNER = 'braboobssiere';
-    const REPO  = 'nanoblock_manuals';
-    const FOLDER = 'nanoblock_manuals';   // the subfolder containing the PDFs
-    const BRANCH = 'main';
-    // ────────────────────────────────────────────────────────────────────
+  // ---------- the only settings you might change ----------
+  const OWNER = 'braboobssiere', REPO = 'nanoblock_manuals', BRANCH = 'main', DIR = 'nanoblock_manuals';
 
-    const contentEl = document.getElementById('content');
-    const searchEl  = document.getElementById('search');
-    let allFiles    = [];
+  // Chip names by product-code prefix. Prefixes not listed here just show the code.
+  const SERIES_LABELS = { NBMC: 'mininano', NBPM: 'Pokémon', NBCC: 'Characters', NB: 'Deluxe Edition' };
 
-    /**
-     * Fetch the directory listing from the GitHub Contents API.
-     * The API returns up to 1000 entries, which is plenty for this repo.
-     */
-    async function fetchManuals() {
-      const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FOLDER}?ref=${BRANCH}`;
+  const API = `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
+  const RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
+  const CACHE_KEY = 'nanoblock-manuals-list-v1', CACHE_MS = 30 * 60 * 1000;   // GitHub allows 60 anonymous API calls/hour
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fold = (s) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[\u2018\u2019]/g, "'").toLowerCase();
+  const NON_WORD = /[^\p{L}\p{N}\p{M}]+/gu;
+  const squash = (s) => fold(s).replace(NON_WORD, '');   // "Yu-Gi-Oh!" -> "yugioh", "NBPM_036" -> "nbpm036"
+  const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
+  const coll = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+  const CAN_VIEW = navigator.pdfViewerEnabled !== false;   // false where the browser has no built-in PDF viewer
+  const PALETTE = ['#e5484d', '#f5a524', '#17a589', '#3b82f6', '#8e5cf6', '#ec4899', '#14b8a6', '#84a30d', '#f97316'];
+
+  $('repo').href = `https://github.com/${OWNER}/${REPO}`;
+
+  // ---------- 1. get the file list from GitHub (one API call, cached for 30 min) ----------
+  const readCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (_) { return null; } };
+  const writeCache = (files) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), files })); } catch (_) {} };
+
+  async function loadFiles() {
+    const cached = readCache();
+    if (cached && Date.now() - cached.t < CACHE_MS) return { files: cached.files };
+    try {
+      let res;
+      try { res = await fetch(API); } catch (_) { throw new Error("Couldn't reach GitHub"); }
+      if (res.status === 403 || res.status === 429) throw new Error('GitHub API rate limit reached');
+      if (!res.ok) throw new Error('GitHub API error ' + res.status);
+      const json = await res.json();
+      const files = json.tree
+        .filter((e) => e.type === 'blob' && e.path.startsWith(DIR + '/') && /\.pdf$/i.test(e.path))
+        .map((e) => [e.path.slice(DIR.length + 1), e.size]);
+      if (!files.length) throw new Error(`No PDFs found in "${DIR}"`);
+      writeCache(files);
+      return { files, note: json.truncated ? 'GitHub truncated the file list, so some manuals may be missing.' : '' };
+    } catch (err) {
+      if (cached) return { files: cached.files, note: `${err.message}. Showing a copy saved ${new Date(cached.t).toLocaleString()}.` };
+      throw err;
+    }
+  }
+
+  // ---------- 2. turn filenames into entries ----------
+  // "<code> - <name>.pdf" or "<code> - <name> - <n>.pdf" (n = part of a multi-PDF product)
+  const NAME_RE = /^(.+?) - (.+?)(?: - (\d+))?$/;
+  const SERIES_RE = /(?:^|[^A-Za-z])(NMBC|NBMC|NBCC|NBPM|NBC|NBH|NBM|NB)(?=[_\-\d])/;
+
+  function seriesOf(code, name) {
+    const m = SERIES_RE.exec(code);
+    if (m) return m[1] === 'NMBC' ? 'NBMC' : m[1];            // "NMBC" is a typo in some filenames
+    if (/^nanogage/i.test(code)) return 'nanogage';
+    if (/deluxe|デラックス/i.test(name)) return 'NB';         // e.g. JapaneseGarden_* files
+    return 'Other';
+  }
+
+  let items = [], series = [], colorOf = {}, labelOf = {};
+
+  function buildItems(files) {
+    const groups = new Map();
+    for (const [file, size] of files) {
+      const m = NAME_RE.exec(file.replace(/\.pdf$/i, ''));
+      const code = m ? m[1] : file.replace(/\.pdf$/i, '');
+      const name = (m ? m[2] : code).replace(/\s+/g, ' ').trim();
+      const rec = { file, size, code, name, part: m && m[3] ? +m[3] : null, series: seriesOf(code, name) };
+      // Only PDFs with a "- n" suffix are merged (by name). Plain ones stay separate because
+      // different products can share a name (e.g. two different "SANTA CLAUS" kits).
+      const key = rec.part != null ? 's:' + name : 'f:' + file;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(rec);
+    }
+    items = [...groups.values()].map((f) => {
+      f.sort((a, b) => (a.part || 0) - (b.part || 0) || coll.compare(a.code, b.code));
+      const tally = {}; f.forEach((r) => { tally[r.series] = (tally[r.series] || 0) + 1; });
+      const s = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
+      const t = f[0].name;
+      return { t, s, f, total: f.reduce((n, r) => n + r.size, 0),
+               k: t.replace(/^[^\p{L}\p{N}]+/u, ''),   // sort ignoring leading 『 ( etc.
+               h: squash([t, SERIES_LABELS[s] || s, ...f.map((r) => r.code)].join(' ')) };
+    }).sort((a, b) => coll.compare(a.k, b.k) || coll.compare(a.f[0].code, b.f[0].code));
+
+    const counts = {}; items.forEach((i) => { counts[i.s] = (counts[i.s] || 0) + 1; });
+    series = Object.keys(counts).sort((a, b) => (a === 'Other') - (b === 'Other') || counts[b] - counts[a]);
+    series.forEach((k, i) => { colorOf[k] = k === 'Other' ? '#8b8b8b' : PALETTE[i % PALETTE.length]; labelOf[k] = SERIES_LABELS[k] || k; });
+  }
+
+  // ---------- 3. render ----------
+  const url = (r) => RAW + [DIR, ...r.file.split('/')].map(encodeURIComponent).join('/');
+  const actions = (r) => `<span class="actions">` +
+    (CAN_VIEW ? `<a class="btn primary" data-view href="${url(r)}" target="_blank" rel="noopener">View</a>` : '') +
+    `<a class="btn${CAN_VIEW ? '' : ' primary'}" href="${url(r)}" download title="${esc(r.file)}">Download</a></span>`;
+
+  function rowHtml(it, open) {
+    const style = `style="--c:${colorOf[it.s]}"`;
+    const tag = `<span class="tag">${esc(labelOf[it.s])}</span>`;
+    if (it.f.length === 1) {
+      const r = it.f[0];
+      return `<article class="row" ${style}><div class="row-body">
+        <div class="main"><span class="title">${esc(it.t)}</span><div class="meta">${tag}<code>${esc(r.code)}</code></div></div>
+        <div class="side"><span class="size">${fmtSize(r.size)}</span>${actions(r)}</div></div></article>`;
+    }
+    const parts = it.f.map((r) => `<li class="part"><span class="pn">${r.part != null ? 'Part ' + r.part : 'PDF'}</span><code>${esc(r.code)}</code>
+      <span class="side"><span class="size">${fmtSize(r.size)}</span>${actions(r)}</span></li>`).join('');
+    return `<details class="row" ${style}${open ? ' open' : ''}><summary class="row-head">
+      <span class="main"><span class="title">${esc(it.t)}</span>
+        <span class="meta">${tag}<span class="pill">${it.f.length} manuals <i class="chev"></i></span></span></span>
+      <span class="side"><span class="size">${fmtSize(it.total)}</span></span></summary><ul class="parts">${parts}</ul></details>`;
+  }
+
+  let activeSeries = '';
+  const chipEls = {};
+
+  function buildChips() {
+    $('chips').innerHTML = '';
+    for (const key of ['', ...series]) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.dataset.key = key;
+      if (key) b.style.setProperty('--c', colorOf[key]);
+      b.innerHTML = `${esc(key ? labelOf[key] : 'All')} <span class="n"></span>`;
+      b.addEventListener('click', () => { activeSeries = key; update(); });
+      chipEls[key] = b; $('chips').appendChild(b);
+    }
+  }
+
+  function update() {
+    const tokens = fold($('q').value).split(/\s+/).map((t) => t.replace(NON_WORD, '')).filter(Boolean);
+    const base = items.filter((it) => tokens.every((t) => it.h.includes(t)));
+    const counts = {}; base.forEach((it) => { counts[it.s] = (counts[it.s] || 0) + 1; });   // counts follow the search
+    for (const [key, el] of Object.entries(chipEls)) {
+      const n = key ? counts[key] || 0 : base.length;
+      el.querySelector('.n').textContent = n;
+      el.setAttribute('aria-pressed', String(activeSeries === key));
+      el.classList.toggle('zero', n === 0 && activeSeries !== key);
+    }
+    const list = activeSeries ? base.filter((it) => it.s === activeSeries) : base;
+    const autoOpen = tokens.length > 0 && list.length <= 12;   // few results: show the parts right away
+    $('list').innerHTML = list.map((it) => rowHtml(it, autoOpen)).join('');
+    $('list').hidden = !list.length;
+    $('msg').hidden = !!list.length;
+    if (!list.length) { $('msg').innerHTML = 'No manuals match.<br><button class="btn" id="reset" type="button">Clear search</button>'; }
+    $('count').textContent = `${list.length}${list.length !== items.length ? ' of ' + items.length : ''} manual${list.length === 1 ? '' : 's'}`;
+  }
+
+  // ---------- 4. open a PDF in the browser's viewer ----------
+  // GitHub's raw host labels PDFs "application/octet-stream", so a plain link downloads them.
+  // We fetch the bytes (CORS is open) and give the browser a properly-typed Blob instead.
+  async function viewPdf(a) {
+    const href = a.href, label = a.textContent;
+    const w = window.open('', '_blank');
+    if (!w) { location.assign(href); return; }                   // popup blocked -> normal download
+    w.document.write('<!doctype html><meta charset="utf-8"><title>Loading…</title><body style="margin:0;height:100vh;display:grid;place-items:center;font:16px system-ui,sans-serif;color:#666">Loading manual…</body>');
+    w.document.close();
+    a.classList.add('busy'); a.textContent = 'Loading…';
+    try {
+      const res = await fetch(href);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      w.location.replace(URL.createObjectURL(new Blob([await res.arrayBuffer()], { type: 'application/pdf' })));
+    } catch (_) {
       try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
-        const data = await res.json();
+        w.document.body.textContent = 'Could not open the PDF here. ';
+        const dl = w.document.createElement('a'); dl.href = href; dl.textContent = 'Download it instead.';
+        w.document.body.appendChild(dl);
+      } catch (__) { /* tab was closed */ }
+    } finally { a.classList.remove('busy'); a.textContent = label; }
+  }
 
-        // Keep only PDF files
-        allFiles = data.filter(item => item.type === 'file' && item.name.toLowerCase().endsWith('.pdf'));
-        render(allFiles);
-      } catch (err) {
-        contentEl.innerHTML = `<div class="error">Could not load manuals: ${err.message}</div>`;
-      }
+  // ---------- 5. start ----------
+  async function start() {
+    $('msg').hidden = false; $('list').hidden = true; $('msg').textContent = 'Loading…';
+    try {
+      const { files, note } = await loadFiles();
+      buildItems(files); buildChips();
+      $('sub').textContent = `${items.length} manuals · ${files.length} PDFs · ${fmtSize(files.reduce((n, f) => n + f[1], 0))}`;
+      $('note').hidden = !note; $('note').textContent = note || '';
+      $('q').disabled = false; $('q').focus({ preventScroll: true });
+      update();
+    } catch (err) {
+      $('sub').textContent = 'Could not load the list';
+      $('msg').innerHTML = `${esc(err.message)}.<br>
+        <button class="btn" id="retry" type="button">Try again</button>
+        <a class="btn" href="https://github.com/${OWNER}/${REPO}/tree/${BRANCH}/${DIR}" rel="noopener">Browse on GitHub</a>`;
     }
+  }
 
-    /**
-     * Try to extract a human-friendly "set name" and "page label" from the filename.
-     *
-     * Examples:
-     *   "JapaneseGarden_B1_RightBase_inst_s03 - JAPANESE GARDEN DELUXE EDITION - 2.pdf"
-     *      → set: "JAPANESE GARDEN DELUXE EDITION", page: "2"
-     *
-     *   "NB009_01 - ノイシュバンシュタイン城 デラックスエディション - 1.pdf"
-     *      → set: "ノイシュバンシュタイン城 デラックスエディション", page: "1"
-     *
-     *   "250911_I1125_NBC407_inst_front_OL - IPPUDO AKAMARU MODERN - 1.pdf"
-     *      → set: "IPPUDO AKAMARU MODERN", page: "1"
-     */
-    function parseFilename(name) {
-      const base = name.replace(/\.pdf$/i, '');
+  let timer;
+  $('q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(update, 60); });
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#retry')) { start(); return; }
+    if (e.target.closest('#reset')) { $('q').value = ''; activeSeries = ''; update(); $('q').focus(); return; }
+    const a = e.target.closest('a[data-view]');
+    if (a && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) { e.preventDefault(); viewPdf(a); }
+  });
+  document.addEventListener('keydown', (e) => {
+    const tag = document.activeElement.tagName;
+    if (e.key === '/' && tag !== 'INPUT' && !$('q').disabled) { e.preventDefault(); $('q').focus(); }
+    if (e.key === 'Escape' && document.activeElement === $('q') && $('q').value) { $('q').value = ''; update(); }
+  });
 
-      // Most filenames end with " - <Set Name> - <page number>"
-      // Use a greedy match so the last " - " separates the page number.
-      const pageMatch = base.match(/^(.+?)\s*-\s*([^-]+?)\s*-\s*(\d+)$/);
-      if (pageMatch) {
-        const rawSet = pageMatch[2].trim();
-        const page   = pageMatch[3].trim();
-        return { set: cleanSetName(rawSet), page, original: name };
-      }
-
-      // Fallback: use the whole filename as the set, no page number
-      return { set: base, page: '', original: name };
-    }
-
-    /** Normalise set names so that similar ones group together. */
-    function cleanSetName(raw) {
-      return raw
-        .replace(/\s+/g, ' ')
-        .replace(/DELUXE EDITION$/i, 'DELUXE EDITION')
-        .trim();
-    }
-
-    /** Group an array of parsed files by their set name. */
-    function groupBySet(files) {
-      const map = new Map();
-      for (const f of files) {
-        const parsed = parseFilename(f.name);
-        if (!map.has(parsed.set)) map.set(parsed.set, []);
-        map.get(parsed.set).push({ ...parsed, url: f.download_url });
-      }
-      // Sort sets alphabetically, and pages numerically within each set
-      const sorted = [...map.entries()].sort((a, b) =>
-        a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
-      );
-      for (const [, items] of sorted) {
-        items.sort((a, b) => {
-          const na = parseInt(a.page, 10) || 0;
-          const nb = parseInt(b.page, 10) || 0;
-          return na - nb;
-        });
-      }
-      return sorted;
-    }
-
-    /** Render the grouped, filtered list into the page. */
-    function render(files) {
-      const filter = searchEl.value.trim().toLowerCase();
-      const filtered = filter
-        ? files.filter(f => f.name.toLowerCase().includes(filter))
-        : files;
-
-      if (filtered.length === 0) {
-        contentEl.innerHTML = '<div class="loading">No manuals match your search.</div>';
-        return;
-      }
-
-      const groups = groupBySet(filtered);
-      let html = '';
-
-      for (const [setName, items] of groups) {
-        html += `
-          <div class="set-group">
-            <div class="set-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
-              <span>${escapeHtml(setName)}</span>
-              <span class="count">${items.length} file${items.length > 1 ? 's' : ''}</span>
-            </div>
-            <div class="set-body">
-              ${items.map(item => `
-                <a class="manual-row"
-                   href="${item.url}"
-                   target="_blank"
-                   rel="noopener">
-                  <span class="manual-name">${escapeHtml(item.original)}</span>
-                  ${item.page ? `<span class="manual-page">Page ${escapeHtml(item.page)}</span>` : ''}
-                </a>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
-
-      contentEl.innerHTML = html;
-    }
-
-    /** Simple HTML-escaping helper. */
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    // Re-render whenever the user types in the search box
-    searchEl.addEventListener('input', () => render(allFiles));
-
-    // Kick everything off
-    fetchManuals();
-  </script>
-
+  start();
+})();
+</script>
 </body>
 </html>

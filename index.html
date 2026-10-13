@@ -166,19 +166,35 @@
   <div class="vscroll" id="vscroll"><div class="vpages" id="vpages"></div><div class="vmsg" id="vmsg"></div></div>
 </div>
 
-<script>
+<script type="module">
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.4.299/pdf.min.mjs';
+
+// Worker is pinned to the exact same version as the library above. Mismatched versions
+// are the #1 cause of "stuck on Loading…" or "API version does not match Worker version".
+const PDFJS_VERSION = '6.4.299';
+const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
+
 (() => {
   'use strict';
 
   // ---------- the only settings you might change ----------
   const OWNER = 'braboobssiere', REPO = 'nanoblock_manuals', BRANCH = 'main', DIR = 'nanoblock_manuals';
 
+  // Optional assets from the same cdnjs version. cMaps are needed for CJK text
+  // (Chinese/Japanese/Korean) if the PDF doesn't embed its own mapping; standard_fonts
+  // helps older PDFs that reference the 14 standard fonts by name. Set either to ''
+  // to skip loading them.
+  const PDFJS_CMAPS = PDFJS_BASE + 'cmaps/';
+  const PDFJS_FONTS = PDFJS_BASE + 'standard_fonts/';
+
   // Chip names by product-code prefix. Prefixes not listed here just show the code.
   const SERIES_LABELS = { NBMC: 'mininano', NBPM: 'Pokémon', NBCC: 'Characters', NB: 'Deluxe Edition' };
 
   const API = `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
   const RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
-  const CACHE_KEY = 'nanoblock-manuals-list-v1', CACHE_MS = 30 * 60 * 1000;   // GitHub allows 60 anonymous API calls/hour
+  const CACHE_KEY = 'nanoblock-manuals-list-v2';
+  const CACHE_MIN_MS = 60 * 60 * 1000;   // never re-check GitHub before this long
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -191,29 +207,76 @@
 
   $('repo').href = `https://github.com/${OWNER}/${REPO}`;
 
-  // ---------- 1. get the file list from GitHub (one API call, cached for 30 min) ----------
-  const readCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (_) { return null; } };
-  const writeCache = (files) => { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), files })); } catch (_) {} };
+  // ---------- 0. PDF.js (ES module, already imported above) ----------
+  const pdfjsReady = Promise.resolve(pdfjsLib);
+  const pdfjsFailed = false;
+
+  // ---------- 1. get the file list from GitHub ----------
+  // Two-stage cache:
+  //   * under CACHE_MIN_MS old  -> use it as-is, no network at all
+  //   * older than that         -> revalidate with If-None-Match
+  // A 304 means nothing changed (and 304s don't count against GitHub's 60/hour
+  // anonymous limit), so we refresh the timestamp and skip the next hour too.
+  // A 200 means the repo changed, so we rewrite the cache.
+  const readCache = () => {
+    try {
+      const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+      return c && Array.isArray(c.files) && c.files.length ? c : null;
+    } catch (_) { return null; }
+  };
+  const writeCache = (files, etag, note) => {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), etag: etag || '', files, note: note || '' })); } catch (_) {}
+  };
+  const touchCache = (c) => writeCache(c.files, c.etag, c.note);   // same data, fresh timestamp
 
   async function loadFiles() {
     const cached = readCache();
-    if (cached && Date.now() - cached.t < CACHE_MS) return { files: cached.files };
-    try {
-      let res;
-      try { res = await fetch(API); } catch (_) { throw new Error("Couldn't reach GitHub"); }
-      if (res.status === 403 || res.status === 429) throw new Error('GitHub API rate limit reached');
-      if (!res.ok) throw new Error('GitHub API error ' + res.status);
-      const json = await res.json();
-      const files = json.tree
-        .filter((e) => e.type === 'blob' && e.path.startsWith(DIR + '/') && /\.pdf$/i.test(e.path))
-        .map((e) => [e.path.slice(DIR.length + 1), e.size]);
-      if (!files.length) throw new Error(`No PDFs found in "${DIR}"`);
-      writeCache(files);
-      return { files, note: json.truncated ? 'GitHub truncated the file list, so some manuals may be missing.' : '' };
-    } catch (err) {
-      if (cached) return { files: cached.files, note: `${err.message}. Showing a copy saved ${new Date(cached.t).toLocaleString()}.` };
-      throw err;
+
+    // Still young enough: skip the network entirely.
+    // (cached.t is missing only on entries saved by an older version — those revalidate once, then get a timestamp.)
+    if (cached && cached.t && Date.now() - cached.t < CACHE_MIN_MS) {
+      return { files: cached.files, note: cached.note || '' };
     }
+
+    const headers = { Accept: 'application/vnd.github+json' };
+    if (cached && cached.etag) headers['If-None-Match'] = cached.etag;
+
+    let res;
+    try {
+      // no-store keeps the browser's own HTTP cache out of the way so our ETag is authoritative
+      res = await fetch(API, { headers, cache: 'no-store' });
+    } catch (_) {
+      if (cached) return { files: cached.files, note: 'Offline — showing the last saved copy.' };
+      throw new Error("Couldn't reach GitHub");
+    }
+
+    if (res.status === 304 && cached) {
+      touchCache(cached);                                   // unchanged: restart the hour
+      return { files: cached.files, note: cached.note || '' };
+    }
+
+    if (res.status === 403 || res.status === 429) {
+      if (cached) return { files: cached.files, note: 'GitHub API rate limit reached — showing the last saved copy.' };
+      throw new Error('GitHub API rate limit reached');
+    }
+    if (!res.ok) {
+      if (cached) return { files: cached.files, note: `GitHub API error ${res.status} — showing the last saved copy.` };
+      throw new Error('GitHub API error ' + res.status);
+    }
+
+    const json = await res.json();
+    const files = json.tree
+      .filter((e) => e.type === 'blob' && e.path.startsWith(DIR + '/') && /\.pdf$/i.test(e.path))
+      .map((e) => [e.path.slice(DIR.length + 1), e.size]);
+
+    if (!files.length) {
+      if (cached) return { files: cached.files, note: `No PDFs found in "${DIR}" — showing the last saved copy.` };
+      throw new Error(`No PDFs found in "${DIR}"`);
+    }
+
+    const note = json.truncated ? 'GitHub truncated the file list, so some manuals may be missing.' : '';
+    writeCache(files, res.headers.get('ETag') || '', note);
+    return { files, note };
   }
 
   // ---------- 2. turn filenames into entries ----------
@@ -319,22 +382,8 @@
     $('count').textContent = `${list.length}${list.length !== items.length ? ' of ' + items.length : ''} manual${list.length === 1 ? '' : 's'}`;
   }
 
-  // ---------- 4. PDF viewer (PDF.js, loaded from a CDN the first time you click View) ----------
-  const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
+  // ---------- 4. PDF viewer (PDF.js, loaded via ES module import above) ----------
   const V = { doc: null, sizes: [], els: [], visible: new Set(), zoom: 1, w: 0, obs: null, token: 0, pushed: false, trigger: null };
-  let pdfjsPromise = null;
-
-  function loadPdfjs() {
-    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-    if (!pdfjsPromise) pdfjsPromise = new Promise((ok, fail) => {
-      const s = document.createElement('script');
-      s.src = PDFJS + 'build/pdf.min.js';
-      s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'build/pdf.worker.min.js'; ok(window.pdfjsLib); };
-      s.onerror = () => { pdfjsPromise = null; s.remove(); fail(new Error("couldn't load the viewer library")); };
-      document.head.appendChild(s);
-    });
-    return pdfjsPromise;
-  }
 
   async function openViewer(r, trigger) {
     closeViewer(true);
@@ -346,15 +395,17 @@
     $('vdl').href = url(r); $('vpage').textContent = '';
     $('vmsg').textContent = 'Loading…'; $('vclose').focus();
     try {
-      const lib = await loadPdfjs();
+      await pdfjsReady;
       const res = await fetch(url(r));
       if (!res.ok) throw new Error('download failed: HTTP ' + res.status);
       const data = new Uint8Array(await res.arrayBuffer());
       if (token !== V.token) return;
-      const doc = await lib.getDocument({
-        data, isEvalSupported: false,
-        cMapUrl: PDFJS + 'cmaps/', cMapPacked: true, standardFontDataUrl: PDFJS + 'standard_fonts/',
-      }).promise;
+
+      const opts = { data };
+      if (PDFJS_CMAPS) { opts.cMapUrl = PDFJS_CMAPS; opts.cMapPacked = true; }
+      if (PDFJS_FONTS) opts.standardFontDataUrl = PDFJS_FONTS;
+
+      const doc = await pdfjsLib.getDocument(opts).promise;
       if (token !== V.token) { doc.destroy(); return; }
       V.doc = doc;
       V.sizes = await Promise.all(Array.from({ length: doc.numPages }, (_, i) =>
@@ -474,7 +525,8 @@
     if (e.target.closest('#retry')) { start(); return; }
     if (e.target.closest('#reset')) { $('q').value = ''; activeSeries = ''; update(); $('q').focus(); return; }
     const a = e.target.closest('a[data-view]');
-    if (a && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) { e.preventDefault(); openViewer(recs[+a.dataset.view], a); }
+    // If PDF.js never loaded, let the link do its normal thing (open the PDF in a new tab).
+    if (a && !pdfjsFailed && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) { e.preventDefault(); openViewer(recs[+a.dataset.view], a); }
   });
   document.addEventListener('keydown', (e) => {
     const tag = document.activeElement.tagName;

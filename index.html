@@ -168,11 +168,10 @@
 </div>
 
 <script type="module">
-import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.4.299/pdf.min.mjs';
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.624/pdf.min.mjs';
 
-// Worker is pinned to the exact same version as the library above. Mismatched versions
-// are the #1 cause of "stuck on Loading…" or "API version does not match Worker version".
-const PDFJS_VERSION = '6.4.299';
+// Worker is pinned to the exact same version as the library above.
+const PDFJS_VERSION = '5.4.624';
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/`;
 pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
 
@@ -447,15 +446,14 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
       const c = document.createElement('canvas');
       c.width = Math.floor(vp.width);
       c.height = Math.floor(vp.height);
-      // PDF.js 5+ replaced `canvasContext` with `canvas`. Passing both keeps this
-      // working across 4.x/5.x/6.x, since unknown keys are ignored.
+      // PDF.js 5.x uses `canvasContext`; 6.x switched to `canvas`. Passing both
+      // keys keeps this working on either version (unknown keys are ignored).
       const ctx = c.getContext('2d');
-      d._task = page.render({ canvas: c, canvasContext: ctx, viewport: vp });
+      d._task = page.render({ canvasContext: ctx, canvas: c, viewport: vp });
       await d._task.promise;
       if (d._tk === tk) d.replaceChildren(c);
     } catch (err) {
       if (d._tk === tk) {
-        // No more silent failures — show the real reason in the placeholder.
         console.error(`PDF page ${i + 1} render failed:`, err);
         const e = document.createElement('div');
         e.className = 'vperr';

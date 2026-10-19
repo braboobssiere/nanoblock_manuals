@@ -145,7 +145,7 @@
         <p class="sub" id="sub">Loading list from GitHub…</p>
       </div>
     </div>
-    <a class="repo" id="repo" href="#" rel="noopener">GitHub repo ↗</a>
+    <a class="repo" id="repo" href="./nanoblock_piece.pdf" data-view="piece" rel="noopener">nanoblock piece ↗</a>
   </header>
 
   <section class="toolbar" aria-label="Search and filters">
@@ -228,7 +228,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
   const coll = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
   const PALETTE = ['#e5484d', '#f5a524', '#17a589', '#3b82f6', '#8e5cf6', '#ec4899', '#14b8a6', '#84a30d', '#f97316'];
 
-  $('repo').href = `https://github.com/${OWNER}/${REPO}`;
+  // Synthetic record for the piece chart at the site root (not part of the GitHub list).
+  // The header link carries data-view="piece", so it opens in the built-in viewer.
+  const PIECE_REC = {
+    id: -1, file: 'nanoblock_piece.pdf', abs: './nanoblock_piece.pdf', size: 0,
+    code: 'PIECE', name: 'nanoblock piece', part: null, series: 'Other'
+  };
 
   // ---------- 0. PDF.js (ES module, already imported above) ----------
   const pdfjsReady = Promise.resolve(pdfjsLib);
@@ -338,8 +343,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
 
   // ---------- 3. render ----------
   // Per-file origin: jsDelivr for normal files, raw GitHub for anything near jsDelivr's 20 MB cap.
-  const url = (r) => (r.size > BIG_FILE ? RAW_GH : RAW_CDN) +
-                     [DIR, ...r.file.split('/')].map(encodeURIComponent).join('/');
+  // Records with an `abs` URL (e.g. the local piece chart) use it verbatim.
+  const url = (r) => r.abs || ((r.size > BIG_FILE ? RAW_GH : RAW_CDN) +
+                     [DIR, ...r.file.split('/')].map(encodeURIComponent).join('/'));
   const actions = (r) => `<span class="actions">` +
     `<a class="btn primary" data-view="${r.id}" href="${url(r)}" target="_blank" rel="noopener">View</a>` +
     `<a class="btn" href="${url(r)}" download title="${esc(r.file)}">Download</a></span>`;
@@ -649,7 +655,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
     if (e.target.closest('#retry')) { start(); return; }
     if (e.target.closest('#reset')) { $('q').value = ''; activeSeries = ''; update(); $('q').focus(); return; }
     const a = e.target.closest('a[data-view]');
-    if (a && !pdfjsFailed && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) { e.preventDefault(); openViewer(recs[+a.dataset.view], a); }
+    if (a && !pdfjsFailed && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) {
+      const r = a.dataset.view === 'piece' ? PIECE_REC : recs[+a.dataset.view];
+      if (!r) return;
+      e.preventDefault();
+      openViewer(r, a);
+    }
   });
 
   document.addEventListener('keydown', (e) => {

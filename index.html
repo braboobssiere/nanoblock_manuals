@@ -106,8 +106,11 @@
   .vbtn { font: inherit; font-size: .9rem; line-height: 1; color: #eee; background: #333; border: 1px solid #484848; border-radius: 8px;
           padding: .45rem .75rem; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .vbtn:hover { background: #404040; }
-  .vscroll { flex: 1; position: relative; overflow: auto; padding: 12px 0; -webkit-overflow-scrolling: touch; }
-  .vpages { display: flex; flex-direction: column; align-items: center; gap: 12px; width: max-content; min-width: 100%; }
+  /* pan-x pan-y allows native one-finger scrolling but leaves pinch-zoom to our JS */
+  .vscroll { flex: 1; position: relative; overflow: auto; padding: 12px 0; -webkit-overflow-scrolling: touch;
+             touch-action: pan-x pan-y; }
+  .vpages { display: flex; flex-direction: column; align-items: center; gap: 12px; width: max-content; min-width: 100%;
+            will-change: transform; }
   .vp { flex: none; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
   .vp canvas { display: block; width: 100%; height: 100%; }
   .vp:empty::after { content: "Loading page…"; display: grid; place-items: center; height: 100%; color: #999; font-size: .9rem; }
@@ -117,6 +120,14 @@
 
   @media (max-width: 640px) {
     .vdl-label { display: none; }
+
+    /* header: keep the piece-chart pill visible on phones */
+    header { flex-wrap: wrap; }
+    .brand { min-width: 0; }
+    .brand > div { min-width: 0; }
+    h1, .sub { overflow-wrap: anywhere; }
+    .repo { font-size: .8rem; padding: .3rem .65rem; }
+
     .row-head, .row-body { grid-template-columns: auto 1fr; }
     .side { justify-content: space-between; grid-column: 2; }
     .size { min-width: 0; text-align: left; }
@@ -124,7 +135,6 @@
     .part .pn { grid-column: 2; }
     .part code { grid-column: 2; grid-row: 2; }
     .part .side { grid-column: 3; grid-row: 1 / span 2; flex-direction: column; align-items: flex-end; }
-    .repo { display: none; }
     .chips { flex-wrap: nowrap; overflow-x: auto; margin-inline: -1rem; padding: 0 1rem .2rem; scrollbar-width: none; }
     .chips::-webkit-scrollbar { display: none; }
     .chip { flex: none; }
@@ -426,6 +436,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
 
   // ---------- 4. PDF viewer ----------
   const V = { doc: null, sizes: [], els: [], visible: new Set(), zoom: 1, w: 0, obs: null, token: 0, pushed: false, trigger: null };
+  const MIN_ZOOM = 0.5, MAX_ZOOM = 3;
 
   async function openViewer(r, trigger) {
     closeViewer(true);
@@ -549,11 +560,63 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
   }
 
   $('vclose').addEventListener('click', requestClose);
-  $('vin').addEventListener('click', () => { V.zoom = Math.min(3, V.zoom * 1.25); layout(); });
-  $('vout').addEventListener('click', () => { V.zoom = Math.max(0.5, V.zoom / 1.25); layout(); });
+  $('vin').addEventListener('click', () => { V.zoom = Math.min(MAX_ZOOM, V.zoom * 1.25); layout(); });
+  $('vout').addEventListener('click', () => { V.zoom = Math.max(MIN_ZOOM, V.zoom / 1.25); layout(); });
   $('vscroll').addEventListener('scroll', () => { cancelAnimationFrame(V.raf); V.raf = requestAnimationFrame(updateCurrent); }, { passive: true });
   window.addEventListener('popstate', () => { V.pushed = false; closeViewer(); });
   let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (!$('viewer').hidden && V.els.length) layout(); }, 150); });
+
+  // ---- Pinch-to-zoom (two-finger) on the PDF scroll area ----
+  // Single-finger scroll is left to the browser (touch-action: pan-x pan-y).
+  // During the gesture we only apply a CSS transform for a smooth preview; on
+  // release we commit the scale into V.zoom and call layout() so scroll bounds
+  // and canvas resolution are rebuilt for the new zoom level. IO is paused
+  // mid-gesture to avoid releasing/re-rendering pages while pinching.
+  (() => {
+    const sc = $('vscroll'), pages = $('vpages');
+    let pinch = null;
+    const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const mid  = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+
+    sc.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 2 || $('viewer').hidden) return;
+      const r = pages.getBoundingClientRect();
+      const m = mid(e.touches[0], e.touches[1]);
+      pinch = {
+        d0: dist(e.touches[0], e.touches[1]) || 1,
+        s: 1,
+        ox: m.x - r.left,
+        oy: m.y - r.top,
+      };
+      if (V.obs) V.obs.disconnect();       // pause lazy page rendering
+    }, { passive: true });
+
+    sc.addEventListener('touchmove', (e) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      const raw = dist(e.touches[0], e.touches[1]) / pinch.d0;
+      const lo = MIN_ZOOM / V.zoom, hi = MAX_ZOOM / V.zoom;
+      const s = Math.max(lo, Math.min(hi, raw));
+      pinch.s = s;
+      pages.style.transformOrigin = `${pinch.ox}px ${pinch.oy}px`;
+      pages.style.transform = `scale(${s})`;
+    }, { passive: false });
+
+    const finish = () => {
+      if (!pinch) return;
+      const s = pinch.s;
+      pinch = null;
+      pages.style.transform = '';
+      pages.style.transformOrigin = '';
+      if (s !== 1) {
+        V.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, V.zoom * s));
+        layout();
+      }
+      if (V.obs) V.els.forEach((d) => V.obs.observe(d));   // resume lazy rendering
+    };
+    sc.addEventListener('touchend', finish);
+    sc.addEventListener('touchcancel', finish);
+  })();
 
   // ---------- 5. ZIP download ----------
   let zipping = false;
